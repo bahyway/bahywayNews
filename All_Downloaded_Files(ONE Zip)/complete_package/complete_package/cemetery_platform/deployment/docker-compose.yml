@@ -1,0 +1,137 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with PostGIS
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: najaf_postgres
+    environment:
+      POSTGRES_DB: najaf_cemetery
+      POSTGRES_USER: cemetery_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - najaf_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cemetery_user -d najaf_cemetery"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Rust Data Processor Microservice
+  rust_processor:
+    build:
+      context: ./rust-processor
+      dockerfile: Dockerfile
+    container_name: najaf_rust_processor
+    environment:
+      DATABASE_URL: postgresql://cemetery_user:${DB_PASSWORD:-secure_password}@postgres:5432/najaf_cemetery
+      RUST_LOG: info
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - najaf_network
+    volumes:
+      - ./data/extracted:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # Python FTP Monitor Service
+  ftp_monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.ftp_monitor
+    container_name: najaf_ftp_monitor
+    environment:
+      FTP_HOST: ${FTP_HOST}
+      FTP_PORT: ${FTP_PORT:-22}
+      FTP_USERNAME: ${FTP_USERNAME}
+      FTP_PASSWORD: ${FTP_PASSWORD}
+      FTP_REMOTE_PATH: ${FTP_REMOTE_PATH:-/deceased_records}
+      RUST_SERVICE_URL: http://rust_processor:8080/api/process
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: najaf_cemetery
+      POSTGRES_USER: cemetery_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password}
+      MONITOR_INTERVAL: ${MONITOR_INTERVAL:-30}
+    depends_on:
+      - postgres
+      - rust_processor
+    networks:
+      - najaf_network
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./config:/app/config
+    restart: unless-stopped
+
+  # Python GeoJSON Sync Service (runs on schedule)
+  geojson_sync:
+    build:
+      context: .
+      dockerfile: Dockerfile.geojson_sync
+    container_name: najaf_geojson_sync
+    environment:
+      GEOJSON_URL: ${GEOJSON_URL}
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: najaf_cemetery
+      POSTGRES_USER: cemetery_user
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_password}
+      SYNC_HOURS: "8,14,20"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - najaf_network
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+
+  # Optional: Redis for job queue (future scaling)
+  redis:
+    image: redis:7-alpine
+    container_name: najaf_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - najaf_network
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  # Optional: Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: najaf_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - rust_processor
+    networks:
+      - najaf_network
+    restart: unless-stopped
+
+networks:
+  najaf_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local

@@ -1,0 +1,24 @@
+# Cron configuration for Najaf Cemetery GeoJSON Sync
+# This runs the sync 3 times daily: 8 AM, 2 PM, and 8 PM
+#
+# Installation instructions:
+# 1. Edit your crontab: crontab -e
+# 2. Add these lines (update paths to match your setup):
+#
+# Najaf Cemetery GeoJSON Sync - runs at 8 AM, 2 PM, and 8 PM
+# 0 8 * * * /path/to/your/venv/bin/python /path/to/your/project/najaf_cemetery_sync.py >> /var/log/najaf-cemetery-sync.log 2>&1
+# 0 14 * * * /path/to/your/venv/bin/python /path/to/your/project/najaf_cemetery_sync.py >> /var/log/najaf-cemetery-sync.log 2>&1
+# 0 20 * * * /path/to/your/venv/bin/python /path/to/your/project/najaf_cemetery_sync.py >> /var/log/najaf-cemetery-sync.log 2>&1
+#
+# Cron syntax explanation:
+# * * * * *
+# │ │ │ │ │
+# │ │ │ │ └── Day of week (0-7, where 0 and 7 are Sunday)
+# │ │ │ └──── Month (1-12)
+# │ │ └────── Day of month (1-31)
+# │ └──────── Hour (0-23)
+# └────────── Minute (0-59)
+#
+# To view your current crontab: crontab -l
+# To edit your crontab: crontab -e
+# To view cron logs: grep CRON /var/log/syslog

@@ -1,0 +1,475 @@
+{
+  "project_name": "najaf-cemetery-platform",
+  "version": "1.0.0",
+  "description": "Commercial AI-powered Cemetery Management Platform - SaaS Solution",
+  "license": "Commercial",
+  "pricing_model": "subscription",
+  
+  "directory_structure": {
+    "/opt/najaf-cemetery/": {
+      "description": "Base installation directory",
+      "files": [
+        {
+          "name": "version.txt",
+          "description": "Current platform version"
+        },
+        {
+          "name": "manifest.json",
+          "description": "Installation manifest with service info"
+        },
+        {
+          "name": "manage.sh",
+          "description": "Management script for start/stop/status",
+          "executable": true
+        },
+        {
+          "name": "backup.sh",
+          "description": "Automated backup script",
+          "executable": true
+        },
+        {
+          "name": ".env",
+          "description": "Environment configuration (DO NOT COMMIT)",
+          "sensitive": true
+        },
+        {
+          "name": "docker-compose.yml",
+          "description": "Complete Docker orchestration"
+        },
+        {
+          "name": "QUICKSTART.md",
+          "description": "Quick start guide"
+        },
+        {
+          "name": "LICENSE.txt",
+          "description": "Commercial license agreement"
+        }
+      ],
+      
+      "subdirectories": {
+        "services/": {
+          "description": "Microservices layer",
+          
+          "api-gateway/": {
+            "description": "Main API Gateway service",
+            "files": [
+              "api_gateway.py",
+              "Dockerfile",
+              "requirements.txt",
+              "__init__.py"
+            ]
+          },
+          
+          "rules-engine/": {
+            "description": "Fuzzy logic rules engine",
+            "files": [
+              "rules_engine.py",
+              "fuzzy_location.py",
+              "fuzzy_names.py",
+              "Dockerfile",
+              "__init__.py"
+            ]
+          },
+          
+          "routing-engine/": {
+            "description": "Valhalla routing integration",
+            "files": [
+              "valhalla_routing.py",
+              "route_optimizer.py",
+              "Dockerfile",
+              "__init__.py"
+            ]
+          },
+          
+          "search-engine/": {
+            "description": "Elasticsearch search service",
+            "files": [
+              "search_engine.py",
+              "indexer.py",
+              "query_builder.py",
+              "Dockerfile",
+              "__init__.py"
+            ]
+          },
+          
+          "voice-assistant/": {
+            "description": "RAG + NLP voice interface",
+            "files": [
+              "voice_assistant.py",
+              "speech_recognition.py",
+              "nlp_processor.py",
+              "tts_engine.py",
+              "Dockerfile",
+              "__init__.py"
+            ]
+          },
+          
+          "cv-detector/": {
+            "description": "Computer vision grave detection",
+            "files": [
+              "grave_detection_cv.py",
+              "sam_detector.py",
+              "watershed_detector.py",
+              "image_preprocessor.py",
+              "Dockerfile",
+              "requirements.txt",
+              "__init__.py"
+            ]
+          },
+          
+          "rust-processor/": {
+            "description": "High-performance data processor",
+            "files": [
+              "Cargo.toml",
+              "Dockerfile"
+            ],
+            "subdirectories": {
+              "src/": {
+                "files": [
+                  "main.rs",
+                  "models.rs",
+                  "parser.rs",
+                  "database.rs",
+                  "processor.rs"
+                ]
+              }
+            }
+          },
+          
+          "ftp-monitor/": {
+            "description": "FTP file monitoring service",
+            "files": [
+              "ftp_monitor.py",
+              "file_processor.py",
+              "Dockerfile",
+              "__init__.py"
+            ]
+          },
+          
+          "geojson-sync/": {
+            "description": "Map synchronization service",
+            "files": [
+              "najaf_cemetery_sync.py",
+              "scheduler.py",
+              "Dockerfile",
+              "__init__.py"
+            ]
+          }
+        },
+        
+        "data/": {
+          "description": "Data storage directory",
+          
+          "subdirectories": {
+            "uploads/": {
+              "description": "Uploaded files (ZIP, images)"
+            },
+            "extracted/": {
+              "description": "Extracted data from ZIP files"
+            },
+            "archive/": {
+              "description": "Processed files archive"
+            },
+            "postgres/": {
+              "description": "PostgreSQL data volume"
+            },
+            "elasticsearch/": {
+              "description": "Elasticsearch data volume"
+            },
+            "redis/": {
+              "description": "Redis data volume"
+            },
+            "valhalla/": {
+              "description": "Valhalla tiles and cache"
+            },
+            "drone-imagery/": {
+              "description": "Aerial/drone images for CV processing"
+            }
+          }
+        },
+        
+        "config/": {
+          "description": "Configuration files",
+          "files": [
+            {
+              "name": "init_db.sql",
+              "description": "Database initialization script"
+            },
+            {
+              "name": "elasticsearch.yml",
+              "description": "Elasticsearch configuration"
+            },
+            {
+              "name": "valhalla.json",
+              "description": "Valhalla routing configuration"
+            },
+            {
+              "name": "nginx.conf",
+              "description": "Nginx reverse proxy config"
+            }
+          ]
+        },
+        
+        "logs/": {
+          "description": "Application logs",
+          "files": [
+            "api_gateway.log",
+            "ftp_monitor.log",
+            "rust_processor.log",
+            "search_engine.log",
+            "backup.log",
+            "error.log"
+          ]
+        },
+        
+        "backups/": {
+          "description": "Automated backups",
+          "subdirectories": {
+            "daily/": {
+              "description": "Daily database backups"
+            },
+            "weekly/": {
+              "description": "Weekly full backups"
+            },
+            "configs/": {
+              "description": "Configuration backups"
+            }
+          }
+        },
+        
+        "models/": {
+          "description": "AI models storage",
+          "files": [
+            {
+              "name": "sam_vit_h_4b8939.pth",
+              "description": "SAM model for grave detection (2.4GB)",
+              "size": "2.4GB"
+            },
+            {
+              "name": "maskrcnn_cemetery.pth",
+              "description": "Custom trained Mask R-CNN (optional)",
+              "size": "~300MB"
+            }
+          ]
+        },
+        
+        "docs/": {
+          "description": "Documentation",
+          "files": [
+            "API_REFERENCE.md",
+            "ARCHITECTURE.md",
+            "DEPLOYMENT_GUIDE.md",
+            "USER_MANUAL.md",
+            "ADMIN_GUIDE.md",
+            "TROUBLESHOOTING.md",
+            "CHANGELOG.md"
+          ]
+        },
+        
+        "tests/": {
+          "description": "Test suites",
+          "subdirectories": {
+            "unit/": {
+              "description": "Unit tests",
+              "files": [
+                "test_rules_engine.py",
+                "test_search.py",
+                "test_routing.py",
+                "test_voice.py"
+              ]
+            },
+            "integration/": {
+              "description": "Integration tests",
+              "files": [
+                "test_api_endpoints.py",
+                "test_data_pipeline.py"
+              ]
+            },
+            "e2e/": {
+              "description": "End-to-end tests",
+              "files": [
+                "test_complete_workflow.py"
+              ]
+            }
+          }
+        },
+        
+        "scripts/": {
+          "description": "Utility scripts",
+          "files": [
+            {
+              "name": "deploy.sh",
+              "description": "Deployment script",
+              "executable": true
+            },
+            {
+              "name": "upgrade.sh",
+              "description": "Upgrade to new version",
+              "executable": true
+            },
+            {
+              "name": "health_check.sh",
+              "description": "System health check",
+              "executable": true
+            },
+            {
+              "name": "import_data.py",
+              "description": "Bulk data import utility"
+            },
+            {
+              "name": "export_data.py",
+              "description": "Data export utility"
+            }
+          ]
+        },
+        
+        "venv/": {
+          "description": "Python virtual environment (auto-generated)"
+        }
+      }
+    }
+  },
+  
+  "services": {
+    "api_gateway": {
+      "port": 8000,
+      "description": "Main API Gateway",
+      "dependencies": ["postgres", "elasticsearch", "redis"],
+      "health_endpoint": "/health",
+      "docs_endpoint": "/docs"
+    },
+    "rust_processor": {
+      "port": 8080,
+      "description": "Data processing service",
+      "dependencies": ["postgres"],
+      "health_endpoint": "/health"
+    },
+    "postgres": {
+      "port": 5432,
+      "description": "PostgreSQL + PostGIS database",
+      "data_volume": "/opt/najaf-cemetery/data/postgres"
+    },
+    "elasticsearch": {
+      "port": 9200,
+      "description": "Search engine",
+      "data_volume": "/opt/najaf-cemetery/data/elasticsearch"
+    },
+    "redis": {
+      "port": 6379,
+      "description": "Cache layer",
+      "data_volume": "/opt/najaf-cemetery/data/redis"
+    },
+    "valhalla": {
+      "port": 8002,
+      "description": "Routing engine",
+      "data_volume": "/opt/najaf-cemetery/data/valhalla"
+    }
+  },
+  
+  "deployment": {
+    "method": "ansible",
+    "playbook": "deploy.yml",
+    "inventory": "hosts.ini",
+    "requirements": {
+      "min_ram_gb": 8,
+      "min_storage_gb": 50,
+      "min_cpu_cores": 4,
+      "recommended_ram_gb": 16,
+      "recommended_storage_gb": 100,
+      "recommended_cpu_cores": 8
+    }
+  },
+  
+  "subscription_tiers": {
+    "basic": {
+      "price_monthly": 500,
+      "max_graves": 10000,
+      "features": [
+        "Basic search",
+        "Navigation",
+        "Database management",
+        "Email support"
+      ]
+    },
+    "professional": {
+      "price_monthly": 1500,
+      "max_graves": 50000,
+      "features": [
+        "All Basic features",
+        "Voice assistant (2 languages)",
+        "Fuzzy logic rules engine",
+        "Drone image processing",
+        "Phone support",
+        "Monthly reports"
+      ]
+    },
+    "enterprise": {
+      "price_monthly": 5000,
+      "max_graves": "unlimited",
+      "features": [
+        "All Professional features",
+        "Voice assistant (4 languages)",
+        "Custom AI model training",
+        "Dedicated support",
+        "On-premise deployment",
+        "Custom integrations",
+        "SLA guarantee"
+      ]
+    }
+  },
+  
+  "commercial_features": {
+    "multi_tenancy": true,
+    "white_label": true,
+    "api_access": true,
+    "data_export": true,
+    "custom_branding": true,
+    "analytics_dashboard": true,
+    "role_based_access": true,
+    "audit_logging": true
+  },
+  
+  "target_markets": [
+    {
+      "region": "Middle East",
+      "estimated_cemeteries": 5000,
+      "languages": ["Arabic", "English", "Urdu", "Persian"]
+    },
+    {
+      "region": "South Asia",
+      "estimated_cemeteries": 10000,
+      "languages": ["Urdu", "English", "Hindi"]
+    },
+    {
+      "region": "Europe",
+      "estimated_cemeteries": 15000,
+      "languages": ["English", "French", "German", "Spanish"]
+    },
+    {
+      "region": "North America",
+      "estimated_cemeteries": 20000,
+      "languages": ["English", "Spanish"]
+    }
+  ],
+  
+  "revenue_projections": {
+    "year_1": {
+      "customers": 50,
+      "average_subscription": 1500,
+      "monthly_revenue": 75000,
+      "annual_revenue": 900000
+    },
+    "year_3": {
+      "customers": 500,
+      "average_subscription": 1500,
+      "monthly_revenue": 750000,
+      "annual_revenue": 9000000
+    },
+    "year_5": {
+      "customers": 2000,
+      "average_subscription": 1500,
+      "monthly_revenue": 3000000,
+      "annual_revenue": 36000000
+    }
+  }
+}

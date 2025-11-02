@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements_updated.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY ftp_monitor.py .
+COPY config.py .
+
+# Create directories for data storage
+RUN mkdir -p /app/data/downloads /app/data/extracted /app/data/archive /app/logs
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+
+# Run the FTP monitor
+CMD ["python", "ftp_monitor.py"]

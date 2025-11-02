@@ -1,0 +1,594 @@
+---
+# Najaf Cemetery Platform - Complete Installation Playbook
+# Automated deployment with storage checks, version management, and service setup
+# Commercial-grade, production-ready
+
+- name: Deploy Najaf Cemetery Platform
+  hosts: all
+  become: yes
+  vars:
+    # Version control
+    platform_version: "1.0.0"
+    python_version: "3.11"
+    rust_version: "1.75"
+    postgres_version: "15"
+    elasticsearch_version: "8.11.0"
+    redis_version: "7"
+    valhalla_version: "latest"
+    
+    # Storage requirements (in GB)
+    required_storage_gb: 50
+    min_free_storage_gb: 10
+    
+    # Installation paths
+    base_install_path: "/opt/najaf-cemetery"
+    data_path: "{{ base_install_path }}/data"
+    config_path: "{{ base_install_path }}/config"
+    logs_path: "{{ base_install_path }}/logs"
+    
+    # Service configuration
+    api_port: 8000
+    rust_processor_port: 8080
+    postgres_port: 5432
+    elasticsearch_port: 9200
+    redis_port: 6379
+    valhalla_port: 8002
+    
+    # License/Subscription
+    license_key: "{{ lookup('env', 'NAJAF_LICENSE_KEY') }}"
+    subscription_tier: "professional"  # basic, professional, enterprise
+
+  tasks:
+    # ========================================
+    # 1. PRE-FLIGHT CHECKS
+    # ========================================
+    
+    - name: Display installation banner
+      debug:
+        msg: |
+          ╔═══════════════════════════════════════════════════════════╗
+          ║   NAJAF CEMETERY PLATFORM - Commercial Edition           ║
+          ║   Version: {{ platform_version }}                         ║
+          ║   Subscription: {{ subscription_tier }}                   ║
+          ╚═══════════════════════════════════════════════════════════╝
+
+    - name: Check if running as root
+      fail:
+        msg: "This playbook must be run with sudo/root privileges"
+      when: ansible_user_id != "root"
+
+    - name: Check storage space
+      shell: df -BG {{ base_install_path | dirname }} | tail -1 | awk '{print $4}' | sed 's/G//'
+      register: available_storage
+      changed_when: false
+
+    - name: Fail if insufficient storage
+      fail:
+        msg: |
+          Insufficient storage space!
+          Required: {{ required_storage_gb }}GB
+          Available: {{ available_storage.stdout }}GB
+      when: available_storage.stdout | int < required_storage_gb | int
+
+    - name: Display storage status
+      debug:
+        msg: "✓ Storage check passed: {{ available_storage.stdout }}GB available"
+
+    - name: Check if platform already installed
+      stat:
+        path: "{{ base_install_path }}/version.txt"
+      register: existing_installation
+
+    - name: Read existing version
+      slurp:
+        src: "{{ base_install_path }}/version.txt"
+      register: existing_version_encoded
+      when: existing_installation.stat.exists
+
+    - name: Decode existing version
+      set_fact:
+        existing_version: "{{ existing_version_encoded.content | b64decode | trim }}"
+      when: existing_installation.stat.exists
+
+    - name: Display installation status
+      debug:
+        msg: "Found existing installation: v{{ existing_version }}"
+      when: existing_installation.stat.exists
+
+    - name: Prompt for upgrade confirmation
+      pause:
+        prompt: |
+          Existing installation found (v{{ existing_version }}).
+          Upgrade to v{{ platform_version }}? (yes/no)
+      register: upgrade_confirmation
+      when: 
+        - existing_installation.stat.exists
+        - existing_version != platform_version
+
+    - name: Abort if upgrade declined
+      fail:
+        msg: "Upgrade declined by user"
+      when:
+        - existing_installation.stat.exists
+        - existing_version != platform_version
+        - upgrade_confirmation.user_input | lower != 'yes'
+
+    # ========================================
+    # 2. SYSTEM SETUP
+    # ========================================
+
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install system dependencies
+      apt:
+        name:
+          - curl
+          - wget
+          - git
+          - build-essential
+          - libssl-dev
+          - pkg-config
+          - libpq-dev
+          - python3-pip
+          - python3-venv
+          - docker.io
+          - docker-compose
+          - jq
+          - htop
+          - vim
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Start and enable Docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add current user to docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    # ========================================
+    # 3. CREATE DIRECTORY STRUCTURE
+    # ========================================
+
+    - name: Create base directory
+      file:
+        path: "{{ base_install_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Create directory structure
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ base_install_path }}/services"
+        - "{{ base_install_path }}/services/api-gateway"
+        - "{{ base_install_path }}/services/rules-engine"
+        - "{{ base_install_path }}/services/routing-engine"
+        - "{{ base_install_path }}/services/search-engine"
+        - "{{ base_install_path }}/services/voice-assistant"
+        - "{{ base_install_path }}/services/cv-detector"
+        - "{{ base_install_path }}/services/rust-processor"
+        - "{{ base_install_path }}/services/ftp-monitor"
+        - "{{ data_path }}"
+        - "{{ data_path }}/uploads"
+        - "{{ data_path }}/extracted"
+        - "{{ data_path }}/archive"
+        - "{{ data_path }}/postgres"
+        - "{{ data_path }}/elasticsearch"
+        - "{{ data_path }}/redis"
+        - "{{ data_path }}/valhalla"
+        - "{{ config_path }}"
+        - "{{ logs_path }}"
+        - "{{ base_install_path }}/backups"
+        - "{{ base_install_path }}/models"
+
+    # ========================================
+    # 4. CHECK AND INSTALL PYTHON
+    # ========================================
+
+    - name: Check Python version
+      shell: python3 --version | awk '{print $2}'
+      register: current_python_version
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display Python status
+      debug:
+        msg: "Python {{ current_python_version.stdout }} already installed"
+      when: 
+        - current_python_version.rc == 0
+        - current_python_version.stdout is version(python_version, '>=')
+
+    - name: Install Python {{ python_version }}
+      apt:
+        name: "python{{ python_version }}"
+        state: present
+      when: 
+        - current_python_version.rc != 0 or current_python_version.stdout is version(python_version, '<')
+      ignore_errors: yes
+
+    - name: Create Python virtual environment
+      command: python3 -m venv {{ base_install_path }}/venv
+      args:
+        creates: "{{ base_install_path }}/venv"
+
+    # ========================================
+    # 5. CHECK AND INSTALL RUST
+    # ========================================
+
+    - name: Check if Rust is installed
+      shell: rustc --version | awk '{print $2}'
+      register: current_rust_version
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display Rust status
+      debug:
+        msg: "Rust {{ current_rust_version.stdout }} already installed"
+      when: 
+        - current_rust_version.rc == 0
+        - current_rust_version.stdout is version(rust_version, '>=')
+
+    - name: Install Rust
+      shell: |
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source $HOME/.cargo/env
+      args:
+        creates: "{{ ansible_env.HOME }}/.cargo/bin/rustc"
+      when: 
+        - current_rust_version.rc != 0 or current_rust_version.stdout is version(rust_version, '<')
+
+    # ========================================
+    # 6. INSTALL PYTHON DEPENDENCIES
+    # ========================================
+
+    - name: Check if requirements already installed
+      shell: |
+        source {{ base_install_path }}/venv/bin/activate
+        pip freeze | grep -E "fastapi|torch|elasticsearch"
+      register: installed_packages
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Copy requirements file
+      copy:
+        src: requirements_intelligent.txt
+        dest: "{{ base_install_path }}/requirements.txt"
+
+    - name: Install Python packages (if needed)
+      pip:
+        requirements: "{{ base_install_path }}/requirements.txt"
+        virtualenv: "{{ base_install_path }}/venv"
+      when: installed_packages.rc != 0
+
+    - name: Display Python packages status
+      debug:
+        msg: "Python packages already installed"
+      when: installed_packages.rc == 0
+
+    # ========================================
+    # 7. DOWNLOAD AI MODELS
+    # ========================================
+
+    - name: Check if SAM model exists
+      stat:
+        path: "{{ base_install_path }}/models/sam_vit_h_4b8939.pth"
+      register: sam_model
+
+    - name: Download SAM model (2.4GB - this may take a while)
+      get_url:
+        url: https://dl.fbaipublicfiles.com/segment_anything/sam_vit_h_4b8939.pth
+        dest: "{{ base_install_path }}/models/sam_vit_h_4b8939.pth"
+        mode: '0644'
+      when: not sam_model.stat.exists
+      async: 3600
+      poll: 10
+
+    - name: Display model status
+      debug:
+        msg: "✓ SAM model already downloaded (2.4GB)"
+      when: sam_model.stat.exists
+
+    # ========================================
+    # 8. DEPLOY SERVICES
+    # ========================================
+
+    - name: Copy service files
+      copy:
+        src: "{{ item.src }}"
+        dest: "{{ base_install_path }}/services/{{ item.dest }}"
+        mode: '0644'
+      loop:
+        - { src: 'api_gateway.py', dest: 'api-gateway/' }
+        - { src: 'rules_engine.py', dest: 'rules-engine/' }
+        - { src: 'valhalla_routing.py', dest: 'routing-engine/' }
+        - { src: 'search_engine.py', dest: 'search-engine/' }
+        - { src: 'voice_assistant.py', dest: 'voice-assistant/' }
+        - { src: 'grave_detection_cv.py', dest: 'cv-detector/' }
+        - { src: 'ftp_monitor.py', dest: 'ftp-monitor/' }
+        - { src: 'najaf_cemetery_sync.py', dest: 'api-gateway/' }
+
+    - name: Copy Docker Compose file
+      copy:
+        src: docker-compose-intelligent.yml
+        dest: "{{ base_install_path }}/docker-compose.yml"
+
+    - name: Copy database initialization script
+      copy:
+        src: init_db.sql
+        dest: "{{ config_path }}/init_db.sql"
+
+    # ========================================
+    # 9. CONFIGURE ENVIRONMENT
+    # ========================================
+
+    - name: Create environment file
+      template:
+        src: env.j2
+        dest: "{{ base_install_path }}/.env"
+        mode: '0600'
+
+    - name: Set license key
+      lineinfile:
+        path: "{{ base_install_path }}/.env"
+        line: "LICENSE_KEY={{ license_key }}"
+        create: yes
+      when: license_key != ""
+
+    # ========================================
+    # 10. START SERVICES
+    # ========================================
+
+    - name: Pull Docker images
+      command: docker-compose pull
+      args:
+        chdir: "{{ base_install_path }}"
+
+    - name: Start Docker services
+      command: docker-compose up -d
+      args:
+        chdir: "{{ base_install_path }}"
+
+    - name: Wait for services to be healthy
+      shell: |
+        timeout=60
+        while [ $timeout -gt 0 ]; do
+          if docker-compose ps | grep -q "Up (healthy)"; then
+            exit 0
+          fi
+          sleep 2
+          timeout=$((timeout-2))
+        done
+        exit 1
+      args:
+        chdir: "{{ base_install_path }}"
+      register: service_health
+      ignore_errors: yes
+
+    # ========================================
+    # 11. VERIFY INSTALLATION
+    # ========================================
+
+    - name: Check API Gateway health
+      uri:
+        url: "http://localhost:{{ api_port }}/health"
+        status_code: 200
+      register: api_health
+      retries: 5
+      delay: 5
+      until: api_health.status == 200
+      ignore_errors: yes
+
+    - name: Check Elasticsearch health
+      uri:
+        url: "http://localhost:{{ elasticsearch_port }}/_cluster/health"
+        status_code: 200
+      register: es_health
+      retries: 5
+      delay: 5
+      until: es_health.status == 200
+      ignore_errors: yes
+
+    - name: Display service status
+      debug:
+        msg: |
+          ╔═══════════════════════════════════════════════════════════╗
+          ║   INSTALLATION COMPLETE                                   ║
+          ╠═══════════════════════════════════════════════════════════╣
+          ║   API Gateway:      http://localhost:{{ api_port }}       ║
+          ║   API Docs:         http://localhost:{{ api_port }}/docs  ║
+          ║   Elasticsearch:    http://localhost:{{ elasticsearch_port }} ║
+          ║   PostgreSQL:       localhost:{{ postgres_port }}         ║
+          ╠═══════════════════════════════════════════════════════════╣
+          ║   Status:           {{ 'HEALTHY ✓' if api_health.status == 200 else 'STARTING...' }} ║
+          ║   Version:          {{ platform_version }}                ║
+          ║   Subscription:     {{ subscription_tier }}               ║
+          ╚═══════════════════════════════════════════════════════════╝
+
+    # ========================================
+    # 12. SAVE INSTALLATION INFO
+    # ========================================
+
+    - name: Save version file
+      copy:
+        content: "{{ platform_version }}"
+        dest: "{{ base_install_path }}/version.txt"
+
+    - name: Save installation manifest
+      copy:
+        content: |
+          {
+            "version": "{{ platform_version }}",
+            "installed_at": "{{ ansible_date_time.iso8601 }}",
+            "subscription_tier": "{{ subscription_tier }}",
+            "services": {
+              "api_gateway": "{{ api_port }}",
+              "rust_processor": "{{ rust_processor_port }}",
+              "postgres": "{{ postgres_port }}",
+              "elasticsearch": "{{ elasticsearch_port }}",
+              "redis": "{{ redis_port }}",
+              "valhalla": "{{ valhalla_port }}"
+            }
+          }
+        dest: "{{ base_install_path }}/manifest.json"
+
+    - name: Create management scripts
+      copy:
+        content: |
+          #!/bin/bash
+          # Najaf Cemetery Platform Management Script
+          
+          cd {{ base_install_path }}
+          
+          case "$1" in
+            start)
+              docker-compose up -d
+              echo "Services started"
+              ;;
+            stop)
+              docker-compose down
+              echo "Services stopped"
+              ;;
+            restart)
+              docker-compose restart
+              echo "Services restarted"
+              ;;
+            status)
+              docker-compose ps
+              ;;
+            logs)
+              docker-compose logs -f "${2:-api_gateway}"
+              ;;
+            backup)
+              ./backup.sh
+              ;;
+            update)
+              ansible-playbook deploy.yml
+              ;;
+            *)
+              echo "Usage: $0 {start|stop|restart|status|logs|backup|update}"
+              exit 1
+          esac
+        dest: "{{ base_install_path }}/manage.sh"
+        mode: '0755'
+
+    # ========================================
+    # 13. SETUP BACKUP SYSTEM
+    # ========================================
+
+    - name: Create backup script
+      copy:
+        content: |
+          #!/bin/bash
+          # Automated backup script
+          
+          BACKUP_DIR="{{ base_install_path }}/backups"
+          DATE=$(date +%Y%m%d_%H%M%S)
+          
+          # Backup database
+          docker exec najaf_postgres pg_dump -U cemetery_user najaf_cemetery | gzip > "$BACKUP_DIR/db_$DATE.sql.gz"
+          
+          # Backup configuration
+          tar czf "$BACKUP_DIR/config_$DATE.tar.gz" {{ config_path }}
+          
+          # Remove old backups (keep last 30 days)
+          find "$BACKUP_DIR" -name "*.gz" -mtime +30 -delete
+          
+          echo "Backup completed: $DATE"
+        dest: "{{ base_install_path }}/backup.sh"
+        mode: '0755'
+
+    - name: Setup daily backup cron job
+      cron:
+        name: "Najaf Cemetery daily backup"
+        minute: "0"
+        hour: "2"
+        job: "{{ base_install_path }}/backup.sh >> {{ logs_path }}/backup.log 2>&1"
+
+    # ========================================
+    # 14. POST-INSTALLATION
+    # ========================================
+
+    - name: Display success message
+      debug:
+        msg: |
+          
+          ╔═══════════════════════════════════════════════════════════╗
+          ║                                                           ║
+          ║   ✓ NAJAF CEMETERY PLATFORM SUCCESSFULLY INSTALLED       ║
+          ║                                                           ║
+          ╠═══════════════════════════════════════════════════════════╣
+          ║                                                           ║
+          ║   Next Steps:                                             ║
+          ║   1. Visit: http://localhost:8000/docs                    ║
+          ║   2. Configure FTP credentials in .env                    ║
+          ║   3. Upload cemetery data via API                         ║
+          ║   4. Test voice assistant                                 ║
+          ║                                                           ║
+          ║   Management:                                             ║
+          ║   - Start:   {{ base_install_path }}/manage.sh start     ║
+          ║   - Stop:    {{ base_install_path }}/manage.sh stop      ║
+          ║   - Status:  {{ base_install_path }}/manage.sh status    ║
+          ║   - Logs:    {{ base_install_path }}/manage.sh logs      ║
+          ║                                                           ║
+          ║   Documentation: {{ base_install_path }}/docs/            ║
+          ║                                                           ║
+          ╚═══════════════════════════════════════════════════════════╝
+
+    - name: Save quickstart guide
+      copy:
+        content: |
+          # Najaf Cemetery Platform - Quick Start
+          
+          ## Access Points
+          - API Gateway: http://localhost:8000
+          - API Documentation: http://localhost:8000/docs
+          - PostgreSQL: localhost:5432
+          - Elasticsearch: http://localhost:9200
+          
+          ## Management Commands
+          ```bash
+          cd {{ base_install_path }}
+          
+          # Start services
+          ./manage.sh start
+          
+          # Stop services
+          ./manage.sh stop
+          
+          # View logs
+          ./manage.sh logs api_gateway
+          
+          # Check status
+          ./manage.sh status
+          
+          # Create backup
+          ./manage.sh backup
+          ```
+          
+          ## First Steps
+          1. Configure FTP credentials in .env file
+          2. Upload drone imagery via API
+          3. Process deceased records
+          4. Test voice assistant
+          
+          ## Support
+          - Documentation: {{ base_install_path }}/docs/
+          - Logs: {{ logs_path }}/
+          - Issues: Contact support@najafcemetery.com
+        dest: "{{ base_install_path }}/QUICKSTART.md"
+
+# ========================================
+# PLAYBOOK END
+# ========================================
