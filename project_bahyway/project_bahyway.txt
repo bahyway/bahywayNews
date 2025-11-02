@@ -1,0 +1,37 @@
+Folder PATH listing for volume Windows
+Volume serial number is 8A44-8349
+C:\USERS\BAHAA\SOURCE\BAHYWAYNEWS\PROJECT_BAHYWAY
+¦   project_bahyway.txt
+¦   project_structure.json
+¦   
++---backend-services
+¦   +---users-service
+¦       ¦   .env
+¦       ¦   dockerfile
+¦       ¦   requirements.txt
+¦       ¦   
+¦       +---user_services
+¦               main.py
+¦               
++---devops
+¦   +---ansible
+¦   ¦       deploy.yml
+¦   ¦       provision.yml
+¦   ¦       
+¦   +---kubernetes-manifests
+¦   ¦   +---users-service
+¦   ¦           deployment.yml
+¦   ¦           service.yml
+¦   ¦           
+¦   +---vagrant
+¦           vagrantfile
+¦           
++---frontend-apps
+    +---main-website
+        ¦   dockerfile
+        ¦   
+        +---src
+            +---pages
+                +---profiles
+                        [id].tsx
+                        

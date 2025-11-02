@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-service-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: users-service
+  template:
+    metadata:
+      labels:
+        app: users-service
+    spec:
+      containers:
+      - name: users-service
+        image: bahyway/users-service:latest # We will build this image
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: bahyway-config

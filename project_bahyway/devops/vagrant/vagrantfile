@@ -1,0 +1,18 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "debian/bookworm64" # Debian 12
+
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = "4096" # 4GB RAM
+    vb.cpus = "2"
+  end
+
+  # Forward ports from the VM to your local machine
+  config.vm.network "forwarded_port", guest: 80, host: 8080   # For Kubernetes Ingress
+  config.vm.network "forwarded_port", guest: 3000, host: 3000 # For Frontend Dev
+  config.vm.network "forwarded_port", guest: 8000, host: 8000 # For Backend Dev
+
+  # Use Ansible to provision the VM
+  config.vm.provision "ansible" do |ansible|
+    ansible.playbook = "../ansible/provision.yml"
+  end
+end

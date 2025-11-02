@@ -1,0 +1,20 @@
+{
+  "name": "bahyway-platform",
+  "directories": [
+    { "name": "backend-services", "directories": [
+      { "name": "users-service" },
+      { "name": "projects-service" },
+      { "name": "news-service" }
+    ]},
+    { "name": "frontend-apps", "directories": [
+      { "name": "main-website" }
+    ]},
+    { "name": "devops", "directories": [
+      { "name": "ansible" },
+      { "name": "kubernetes-manifests" },
+      { "name": "vagrant" }
+    ]},
+    { "name": ".env" },
+    { "name": "docker-compose.yml" }
+  ]
+}

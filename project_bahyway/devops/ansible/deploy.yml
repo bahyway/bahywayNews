@@ -1,0 +1,27 @@
+---
+- hosts: localhost # We run this from our dev machine to control Minikube
+  tasks:
+    - name: Apply Kubernetes ConfigMap from .env file
+      community.kubernetes.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../../.env"
+        kind: ConfigMap
+        name: bahyway-config
+        namespace: default
+
+    - name: Apply Users Service Deployment
+      community.kubernetes.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kubernetes-manifests/users-service/deployment.yml"
+
+    - name: Apply Users Service Service
+      community.kubernetes.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kubernetes-manifests/users-service/service.yml"
+
+    # ... Add tasks for other services (projects, news, frontend) ...
+
+    - name: Apply Ingress Controller to expose services
+      community.kubernetes.k8s:
+        state: present
+        src: "{{ playbook_dir }}/../kubernetes-manifests/ingress.yml"
